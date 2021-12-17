@@ -1,0 +1,19 @@
+
+@font-face {
+    font-family: 'FontAwesome5BrandsRegular';
+    font-weight: 400;
+    src: url("../fonts/Font Awesome 5 Brands-Regular-400.otf");
+}
+
+@font-face {
+    font-family: 'FontAwesome5FreeSolid';
+    font-weight: 900;
+    src: url("../fonts/Font Awesome 5 Free-Solid-900.otf");
+}
+
+@font-face {
+    font-family: 'FontAwesome5FreeRegular';
+    font-weight: 400;
+    src: url("../fonts/Font Awesome 5 Free-Regular-400.otf");
+}
+
