@@ -21,8 +21,8 @@
     "cpx": "^1.5.0"
   },
   "dependencies": {
-    "mentatjs": "^1.0.0",
-    "sksql": "^1.0.3",
+    "mentatjs": "^1.0.1",
+    "sksql": "^1.0.4",
     "codemirror": "^5.64.0"
   }
 }
