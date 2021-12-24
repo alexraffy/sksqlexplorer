@@ -366,7 +366,8 @@ export class Theme {
                     fills: [new Fill(true, "gradient", "normal", "linear-gradient(rgba(61, 61, 61, 1.0), rgba(57, 57, 57, 1.0))")],
                     textStyle: setProps(new PropertyTextStyle(), {
                         color: new Fill(true, "color", "normal", "rgba(224, 224, 225, 1.0)"),
-                        size: px(10)
+                        size: px(12),
+                        weightValue: '600'
                     } as PropertyTextStyle)
                 } as ViewStyle),
             {
@@ -409,7 +410,14 @@ export class Theme {
                 kind: "ViewStyle",
                 id: "header",
                 fills: [new Fill(true, "color", "normal", "rgba(249, 250, 251, 1.0)")],
-                shadows: [new Shadow(true, 0, 1, 0, 0, "rgba(17,28,39,0.05)", false)]
+                shadows: [new Shadow(true, 0, 1, 0, 0, "rgba(17,28,39,0.05)", false)],
+                textStyle: setProps(new PropertyTextStyle(), {
+                    size: px(12),
+                    weightValue: '600',
+                    capitalize: "uppercase",
+                    textAlignment: "center",
+                    color: new Fill(true, "color", "normal", this.textColor)
+                } as PropertyTextStyle)
                 //borders: [new Border(true, 1, "solid", "rgb(232, 232, 232)", BorderSide.bottom)],
 
             },
@@ -423,15 +431,24 @@ export class Theme {
                 kind: "ViewStyle",
                 id: "column.label",
                 textStyle: setProps(new PropertyTextStyle(), {
-                    color: new Fill(true, "color", "normal", "rgba(135, 141, 153, 1.0)"),
-                    capitalize: "uppercase"
+                    size: px(12),
+                    weightValue: '600',
+                    capitalize: "uppercase",
+                    textAlignment: "left",
+                    color: new Fill(true, "color", "normal", this.textColor)
                 } as PropertyTextStyle)
             },
             {
                 kind: "ViewStyle",
                 id: "row",
                 cond: [{property: "cell.isEven", op: "equals", value: false}],
-                fills: [new Fill(true, "color", "normal", "rgb(249, 250, 251)")]
+                fills: [new Fill(true, "color", "normal", "rgb(249, 250, 251)")],
+                textStyle: setProps(new PropertyTextStyle(), {
+                    size: px(12),
+                    weightValue: '600',
+                    textAlignment: "left",
+                    color: new Fill(true, "color", "normal", this.textColor)
+                } as PropertyTextStyle)
             },
             {
                 kind: "ViewStyle",

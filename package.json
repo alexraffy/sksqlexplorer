@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "mentatjs": "^1.0.1",
-    "sksql": "^1.0.4",
+    "sksql": "file:../sksql",
     "codemirror": "^5.64.0"
   }
 }

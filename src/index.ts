@@ -1,20 +1,39 @@
 import {Application, NavigationControllerDelegate, ServiceGetter, ViewController} from "mentatjs";
 import {SKSQLExplorerViewController} from "./SKSQLExplorerViewController";
-import {DBData} from "sksql";
+import {DBData, TDBEventsDelegate, TAuthSession, WSRSQL} from "sksql";
+import {CWebSocket} from "../../sksql/build/WebSocket/CWebSocket";
 
 
-class SKSQLExplorerApp extends Application implements NavigationControllerDelegate {
+
+class SKSQLExplorerApp extends Application implements NavigationControllerDelegate, TDBEventsDelegate {
 
     applicationWillStart() {
         // init SKSQL
-        let _ = new DBData();
-        _.initWorkerPool(4, "");
+        let _ = new DBData(this, "ws://localhost:30000");
+        _.initWorkerPool(0, "");
 
         this.navigationController.instantiateViewController("SKSQLExplorerViewController", SKSQLExplorerViewController, this);
     }
 
     viewControllerWasLoadedSuccessfully(viewController: ViewController) {
         this.navigationController.present(viewController);
+    }
+
+    on(message: string, payload: any) {
+        if (message === WSRSQL) {
+            Application.instance.notifyAll(this, "refreshTables");
+        }
+    }
+
+    authRequired(): TAuthSession {
+        return {
+            valid: true,
+            name: "User"
+        }
+    }
+
+    connectionLost() {
+
     }
 
 }

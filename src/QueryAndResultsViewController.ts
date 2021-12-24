@@ -2,7 +2,7 @@ import {
     Application,
     Bounds,
     Btn,
-    fillParentBounds, generateV4UUID,
+    fillParentBounds, generateV4UUID, Label,
     NavigationController,
     NUConvertToPixel,
     px,
@@ -13,7 +13,7 @@ import {
 } from "mentatjs";
 import {Theme} from "./Theme";
 import * as codemirror from "codemirror";
-import {SQLStatement} from "sksql";
+import {SQLResult, SQLStatement} from "sksql";
 import {SKSQLExplorerView} from "./SKSQLExplorerView";
 import {ResultsTableViewController} from "./ResultsTableViewController";
 import {SQLErrorViewController} from "./SQLErrorViewController";
@@ -22,6 +22,7 @@ export class QueryAndResultsViewController extends ViewController {
 
     queryID: string;
 
+    private toolbarActions: Toolbar;
     private codeMirror: any;
     private resultsTab: Tabs;
     private resultsView: View;
@@ -60,12 +61,14 @@ export class QueryAndResultsViewController extends ViewController {
             }];
             toolbar.initView(v.id + ".toolbar");
             v.attach(toolbar);
+            this.toolbarActions = toolbar;
 
             let fnBody = new View();
             fnBody.boundsForView = function (parentBounds) {
                 return new Bounds(5, 42, NUConvertToPixel(parentBounds.width).amount - 10, 300 );
             }
             fnBody.viewWasAttached = () => {
+                let status = new Label();
                 let myCodeMirror = codemirror(fnBody.getDiv(), {
                     lineNumbers: true,
                     lineWrapping: true,
@@ -78,11 +81,25 @@ export class QueryAndResultsViewController extends ViewController {
                 myCodeMirror["fnID"] = "";
                 myCodeMirror.on("change", () => {
                     let newCode = myCodeMirror.getValue();
-
                 });
-                myCodeMirror.setSize(NUConvertToPixel(bounds.width).amount + "px", 300 + "px");
+                myCodeMirror.on("cursorActivity", () => {
+                    let pos = myCodeMirror.getCursor();
+                    let str = "Line " + pos.line + " Column " + pos.ch;
+                    status.setText(str);
+                });
+                myCodeMirror.setSize(NUConvertToPixel(bounds.width).amount + "px", 280 + "px");
                 myCodeMirror.refresh();
                 this.codeMirror = myCodeMirror;
+
+
+                status.boundsForView = function (parentBounds) {
+                    return new Bounds(0, NUConvertToPixel(parentBounds.height).amount - 20, NUConvertToPixel(parentBounds.width).amount, 20);
+                }
+                status.styles = Theme.labelStyleSmall;
+                status.initView(fnBody.id + ".status");
+                fnBody.attach(status);
+
+
             }
             fnBody.initView("body");
             v.attach(fnBody);
@@ -135,21 +152,6 @@ export class QueryAndResultsViewController extends ViewController {
 
 
     onExecute() {
-        this.resultsTab.dataSource = [];
-        this.resultsTab.processStyleAndRender("", []);
-
-        for (let i = this.tabs.length - 1; i > 0; i--) {
-            let t = this.tabs[i];
-            t.nav.clear();
-            t.nav.destroy();
-            t.view.detachItSelf();
-            this.tabs.splice(i, 1);
-        }
-
-        let value = this.codeMirror.getValue();
-
-        let sql = new SQLStatement(value);
-        let ret = sql.run();
 
         let gotErrors = false;
         let gotMessages = false;
@@ -158,88 +160,118 @@ export class QueryAndResultsViewController extends ViewController {
         let error = "";
         let message = "";
 
-        for (let i = 0; i < ret.length; i++) {
-            if (ret[i].error !== undefined) {
-                gotErrors = true;
-                error = error + "\r\n" + ret[i].error;
-            }
-            if (ret[i].rowCount > 0) {
-                gotMessages = true;
-                message = message + "\r\n" + ret[i].rowCount;
-            }
-            if (ret[i].resultTableName !== "") {
-                gotResults = true;
-            }
-            if (ret[i].executionPlan !== undefined && typeof ret[i].executionPlan.description === "string") {
-                gotExecutionPlan = true;
-            }
-        }
-
-        if (gotErrors) {
-            let id = generateV4UUID();
-            this.resultsTab.dataSource.push(
-                {
-                    id: id,
-                    width: 100,
-                    text: "Error"
-                }
-            );
-            this.resultsTab.selectedId = id;
+        requestAnimationFrame( () => {
+            let btn = this.toolbarActions.findControlForId("execute") as Btn;
+            btn.setText("<span style='font-family: FontAwesome5FreeSolid'>&#xf110;</span>&nbsp;Execute")
+            btn.setEnabled(false);
+            this.resultsTab.dataSource = [];
             this.resultsTab.processStyleAndRender("", []);
 
-            this.addErrorPane(id, this.resultsView, error);
-        }
+            for (let i = this.tabs.length - 1; i > 0; i--) {
+                let t = this.tabs[i];
+                t.nav.clear();
+                t.nav.destroy();
+                t.view.detachItSelf();
+                this.tabs.splice(i, 1);
+            }
+            requestAnimationFrame( () => {
+                let value = this.codeMirror.getValue();
 
-        for (let i = 0; i < ret.length; i++) {
-            if (ret[i].resultTableName !== "") {
-                let id = generateV4UUID();
+                let sql = new SQLStatement(value);
+                let ret: SQLResult[] = [];
+                try {
+                    ret = sql.run();
+                } catch (excep) {
+                    ret = [{error: excep.message, rowCount: undefined, resultTableName: "", executionPlan: undefined}]
+                }
 
-                this.resultsTab.dataSource.push(
-                    {
-                        id: id,
-                        width: 150,
-                        text: "" + ret[i].resultTableName
+                for (let i = 0; i < ret.length; i++) {
+                    if (ret[i].error !== undefined) {
+                        gotErrors = true;
+                        error = error + "\r\n" + ret[i].error;
                     }
-                );
-                this.resultsTab.selectedId = id;
-                this.resultsTab.processStyleAndRender("", []);
-                this.addResultPane(id, this.resultsView, ret[i].resultTableName, false);
+                    if (ret[i].rowCount > 0) {
+                        gotMessages = true;
+                        message = message + "\r\n" + ret[i].rowCount;
+                    }
+                    if (ret[i].resultTableName !== "") {
+                        gotResults = true;
+                    }
+                    if (ret[i].executionPlan !== undefined && typeof ret[i].executionPlan.description === "string") {
+                        gotExecutionPlan = true;
+                    }
+                }
 
-                if (ret[i].executionPlan !== undefined && typeof ret[i].executionPlan.description === "string") {
-                    let idExecutionPlan = generateV4UUID();
+                if (gotErrors) {
+                    let id = generateV4UUID();
                     this.resultsTab.dataSource.push(
                         {
-                            id: idExecutionPlan,
-                            width: 150,
-                            text: "Execution Plan"
+                            id: id,
+                            width: 100,
+                            text: "Error"
+                        }
+                    );
+                    this.resultsTab.selectedId = id;
+                    this.resultsTab.processStyleAndRender("", []);
+
+                    this.addErrorPane(id, this.resultsView, error);
+                }
+
+                for (let i = 0; i < ret.length; i++) {
+                    if (ret[i].resultTableName !== "") {
+                        let id = generateV4UUID();
+
+                        this.resultsTab.dataSource.push(
+                            {
+                                id: id,
+                                width: 150,
+                                text: "" + ret[i].resultTableName
+                            }
+                        );
+                        this.resultsTab.selectedId = id;
+                        this.resultsTab.processStyleAndRender("", []);
+                        this.addResultPane(id, this.resultsView, ret[i].resultTableName, false);
+
+                        if (ret[i].executionPlan !== undefined && typeof ret[i].executionPlan.description === "string") {
+                            let idExecutionPlan = generateV4UUID();
+                            this.resultsTab.dataSource.push(
+                                {
+                                    id: idExecutionPlan,
+                                    width: 150,
+                                    text: "Execution Plan"
+                                }
+                            );
+                            this.resultsTab.processStyleAndRender("", []);
+                            this.addErrorPane(idExecutionPlan, this.resultsView, ret[i].executionPlan.description);
+                        }
+
+
+                    }
+                }
+
+                if (gotMessages) {
+                    let id = generateV4UUID();
+                    this.resultsTab.dataSource.push(
+                        {
+                            id: id,
+                            width: 100,
+                            text: "Messages"
                         }
                     );
                     this.resultsTab.processStyleAndRender("", []);
-                    this.addErrorPane(idExecutionPlan, this.resultsView, ret[i].executionPlan.description );
+                    this.addErrorPane(id, this.resultsView, message);
                 }
+                this.resultsTab.processStyleAndRender("", []);
 
 
-            }
-        }
+                this.resultsTab.setActionDelegate(this, "onTabSelected");
 
-        if (gotMessages) {
-            let id = generateV4UUID();
-            this.resultsTab.dataSource.push(
-                {
-                    id: id,
-                    width: 100,
-                    text: "Messages"
-                }
-            );
-            this.resultsTab.processStyleAndRender("", []);
-            this.addErrorPane(id, this.resultsView, message);
-        }
-        this.resultsTab.processStyleAndRender("", []);
+                btn.setText("Execute")
+                btn.setEnabled(true);
 
-
-        this.resultsTab.setActionDelegate(this, "onTabSelected");
-
-        Application.instance.notifyAll(this, "refreshTables");
+                Application.instance.notifyAll(this, "refreshTables");
+            });
+        });
 
     }
 
