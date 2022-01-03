@@ -182,7 +182,7 @@ export class QueryAndResultsViewController extends ViewController {
                 try {
                     ret = sql.run();
                 } catch (excep) {
-                    ret = [{error: excep.message, rowCount: undefined, resultTableName: "", executionPlan: undefined}]
+                    ret = [{error: excep.message, rowCount: undefined, resultTableName: "", executionPlan: undefined, perfs:{parser: 0, query: 0}}]
                 }
 
                 for (let i = 0; i < ret.length; i++) {

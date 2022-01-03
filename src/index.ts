@@ -1,6 +1,6 @@
 import {Application, NavigationControllerDelegate, ServiceGetter, ViewController} from "mentatjs";
 import {SKSQLExplorerViewController} from "./SKSQLExplorerViewController";
-import {DBData, TDBEventsDelegate, TAuthSession, WSRSQL} from "sksql";
+import {DBData, TDBEventsDelegate, TAuthSession, WSRSQL, WSRDataRequest, TWSRDataResponse} from "sksql";
 import {CWebSocket} from "../../sksql/build/WebSocket/CWebSocket";
 
 
@@ -22,6 +22,12 @@ class SKSQLExplorerApp extends Application implements NavigationControllerDelega
     on(message: string, payload: any) {
         if (message === WSRSQL) {
             Application.instance.notifyAll(this, "refreshTables");
+        }
+        if (message === WSRDataRequest) {
+            let p = payload as TWSRDataResponse;
+            if (p.type === "T") {
+                Application.instance.notifyAll(this, "refreshTables");
+            }
         }
     }
 

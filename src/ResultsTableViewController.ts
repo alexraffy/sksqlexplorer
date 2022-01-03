@@ -3,7 +3,8 @@ import {
     Bounds,
     Btn,
     DataSource,
-    fillParentBounds, Label,
+    fillParentBounds,
+    Label,
     NUConvertToPixel,
     SelectionMode,
     TableView,
@@ -15,17 +16,19 @@ import {
 import {Theme} from "./Theme";
 import {
     cursorEOF,
-    DBData,
+    DBData, instanceOfTDateTime,
+    instanceOfTTime,
     isRowDeleted,
     ITable,
     ITableDefinition,
     kBlockHeaderField,
-    numericDisplay,
+    numericDisplay, padLeft,
     readFirst,
     readNext,
     readTableAsJSON,
     readTableDefinition,
-    readValue
+    readValue,
+    TableColumnType
 } from "sksql";
 import {columnTypeIsNumeric} from "sksql/build/Table/columnTypeIsNumeric";
 import {isNumeric} from "sksql/build/Numeric/isNumeric";
@@ -183,7 +186,23 @@ export class ResultsTableViewController extends ViewController implements TableV
                     } else if (columnTypeIsBoolean(col.type)) {
                         r["field_" + i] = (val === true) ? "true" : false;
                     } else if (columnTypeIsDate(col.type) && instanceOfTDate(val)) {
-                        r["field_" + i] = val.year + "/" + val.month + "/" + val.day;
+                        r["field_" + i] = padLeft(val.year.toString(), 4, "0") + "-" +
+                            padLeft(val.month.toString(), 2, "0") + "-" +
+                            padLeft(val.day.toString(), 2, "0");
+                    } else if (col.type === TableColumnType.time && instanceOfTTime(val)) {
+                        r["field_" + i] = padLeft(val.hours.toString(), 2, "0") + ":" +
+                            padLeft(val.minutes.toString(), 2, "0") + ":" +
+                            padLeft(val.seconds.toString(), 2, "0") + "." +
+                            padLeft(val.millis.toString(), 3, "0");
+                    } else if (col.type === TableColumnType.datetime && instanceOfTDateTime(val)) {
+                        r["field_" + i] = padLeft(val.date.year.toString(), 4, "0") + "-" +
+                            padLeft(val.date.month.toString(), 2, "0") + "-" +
+                            padLeft(val.date.day.toString(), 2, "0") + "T" +
+                            padLeft(val.time.hours.toString(), 2, "0") + ":" +
+                            padLeft(val.time.minutes.toString(), 2, "0") + ":" +
+                            padLeft(val.time.seconds.toString(), 2, "0") + "." +
+                            padLeft(val.time.millis.toString(), 3, "0");
+
                     } else {
                         r["field_" + i] = val;
                     }
