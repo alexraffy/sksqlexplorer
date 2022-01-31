@@ -16,7 +16,7 @@ import {
 import {Theme} from "./Theme";
 import {
     cursorEOF,
-    DBData, instanceOfTDateTime,
+    SKSQL, instanceOfTDateTime,
     instanceOfTTime,
     isRowDeleted,
     ITable,
@@ -110,7 +110,7 @@ export class ResultsTableViewController extends ViewController implements TableV
     onDelete() {
         modalView("&#xf071;", "Delete table", "Are you sure you want to delete this table ? The table definition and all its data will be deleted. This action cannot be undone. ", "CANCEL", "DELETE TABLE", (action) => {
             if (action === "button2") {
-                DBData.instance.dropTable(this.tableName);
+                SKSQL.instance.dropTable(this.tableName);
                 Application.instance.notifyAll(this, "refreshTables");
             }
         });
@@ -120,7 +120,7 @@ export class ResultsTableViewController extends ViewController implements TableV
         if (this.tableName === "") {
             return;
         }
-        let t: ITable = DBData.instance.getTable(this.tableName);
+        let t: ITable = SKSQL.instance.getTable(this.tableName);
         if (t === undefined) {
             return;
         }

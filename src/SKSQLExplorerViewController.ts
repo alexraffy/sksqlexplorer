@@ -11,11 +11,13 @@ import {
     ViewController
 } from "mentatjs";
 import {SKSQLExplorerView} from "./SKSQLExplorerView";
-import {DBData, readTableDefinition} from "sksql";
-import {columnTypeToString} from "sksql/build/Table/columnTypeToString";
+import {cursorEOF, SKSQL, readFirst, readNext, readTableDefinition, readValue,
+    TRegisteredFunction, instanceOfTQueryCreateFunction, TQueryCreateProcedure, columnTypeToString} from "sksql";
+
 import {Theme} from "./Theme";
 import {QueryAndResultsViewController} from "./QueryAndResultsViewController";
 import {ResultsTableViewController} from "./ResultsTableViewController";
+
 
 
 export class SKSQLExplorerViewController extends ViewController implements TreeViewDelegate {
@@ -25,7 +27,7 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
     tabs: {
         id: string;
         view: View;
-        type: "TABLE" | "QUERY";
+        type: "TABLE" | "QUERY" | "FUNCTIONS" | "JSFUNCTION" | "FUNCTION" | "PROCEDURES" | "PROC";
         tableName: string;
         nav: NavigationController;
         vc: ViewController | QueryAndResultsViewController | ResultsTableViewController
@@ -51,8 +53,8 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
 
     refreshTables() {
         let ds = [];
-        for (let i = 0; i < DBData.instance.allTables.length; i++) {
-            let td = readTableDefinition(DBData.instance.allTables[i].data);
+        for (let i = 0; i < SKSQL.instance.allTables.length; i++) {
+            let td = readTableDefinition(SKSQL.instance.allTables[i].data);
             let t = {
                 kind: "TABLE",
                 id: td.name,
@@ -75,7 +77,39 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
             }
             ds.push(t);
         }
+        let functions = {
+            id: generateV4UUID(),
+            kind: "FUNCTIONS",
+            text: "Functions",
+            children: []
+        };
+        for (let i = 0; i < SKSQL.instance.functions.length; i++) {
+            let fn: TRegisteredFunction = SKSQL.instance.functions[i];
+            functions.children.push({
+                id: generateV4UUID(),
+                kind: instanceOfTQueryCreateFunction(fn.fn) ? "FUNCTION" : "JSFUNCTION",
+                text: fn.name,
+                children: []
+            });
+        }
+        ds.push(functions);
 
+        let procedures = {
+            id: generateV4UUID(),
+            kind: "PROCEDURES",
+            text: "Procedures",
+            children: []
+        };
+        for (let i = 0; i < SKSQL.instance.procedures.length; i++) {
+            let fn: TQueryCreateProcedure = SKSQL.instance.procedures[i];
+            procedures.children.push({
+                id: generateV4UUID(),
+                kind: "PROC",
+                text:fn.procName,
+                children: []
+            });
+        }
+        ds.push(procedures);
         let v = this.view as SKSQLExplorerView;
         v.treeView.dataArray = ds;
         v.treeView.delegate = this;
@@ -90,7 +124,7 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
     }
 
 
-    addQuery(queryName: string) {
+    addQuery(queryName: string, text: string = "") {
         let id = generateV4UUID();
         let v = this.view as SKSQLExplorerView;
         v.viewTabBar.dataSource.push(
@@ -115,7 +149,7 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
         nav.instantiateViewController(generateV4UUID(), QueryAndResultsViewController, {
             viewControllerWasLoadedSuccessfully: (viewController: ViewController) => {
                 (viewController as QueryAndResultsViewController).queryID = id;
-
+                (viewController as QueryAndResultsViewController).query = text;
                 this.tabs.push({
                     id: id,
                     view: pane,
@@ -196,7 +230,7 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
         label.styles = Theme.labelStyleSmall;
         label.fillLineHeight = true;
 
-        if (obj.kind === "TABLE") {
+        if (["TABLE", "FUNCTIONS", "FUNCTION", "PROCEDURES", "PROC"].includes(obj.kind)) {
 
             label.text = obj.text;
 
@@ -211,7 +245,17 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
             v.fontWeight = '900';
             v.fontFamily = 'FontAwesome5FreeSolid, -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
             v.fills = [];
-            v.text = "&#xf0ce;";
+            if (obj.kind === "TABLE") {
+                v.text = "&#xf0ce;";
+            } else if (obj.kind === "FUNCTIONS") {
+                v.text = "&#xf121;"
+            } else if (obj.kind === "FUNCTION") {
+                v.text = "&#xf007;"
+            } else if (obj.kind === "PROCEDURES") {
+                v.text = "&#xf121;"
+            } else if (obj.kind === "PROC") {
+                v.text = "&#xf121;"
+            }
 
             v.initView(obj.id + ".listIcon");
             leafCell.attach(v);
@@ -226,6 +270,9 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
             }
         }
 
+        if (obj.kind === "FUNCTIONS" || obj.kind === "JSFUNCTION" || obj.kind === "FUNCTION" || obj.kind === "PROCEDURES" || obj.kind === "PROC") {
+            label.text = obj.text;
+        }
 
         label.initView(leafObject.object.id + ".title");
         leafCell.attach(label);
@@ -252,6 +299,48 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
             let exists = this.tabs.find((t) => { return t.tableName === leaf.object.id;});
             if (!exists) {
                 this.addPane(leaf.object.id, true);
+            }
+        }
+        if (leaf.object.kind === "FUNCTION") {
+            let exists = this.tabs.find((t) => { return t.tableName === "function_" + leaf.object.text.toUpperCase();});
+            if (!exists) {
+                let routines = SKSQL.instance.getTable("routines");
+                let def = readTableDefinition(routines.data);
+                let nameCol = def.columns.find((c) => { return c.name.toUpperCase() === "NAME";});
+                let defCol = def.columns.find((c) => { return c.name.toUpperCase() === "DEFINITION";});
+                let cursor = readFirst(routines, def);
+                while (!cursorEOF(cursor)) {
+                    let fr = new DataView(routines.data.blocks[cursor.blockIndex], cursor.offset, cursor.rowLength + 5);
+                    let nameValue = readValue(routines, def, nameCol, fr, 5) as string;
+                    if (nameValue !== undefined && nameValue.toUpperCase() === leaf.object.text.toUpperCase()) {
+                        let defValue = readValue(routines, def, defCol, fr, 5) as string;
+                        this.addQuery("function_" + leaf.object.text.toUpperCase(), defValue);
+                        return;
+                    }
+                    cursor = readNext(routines, def, cursor);
+                }
+
+            }
+        }
+        if (leaf.object.kind === "PROC") {
+            let exists = this.tabs.find((t) => { return t.tableName === "proc_" + leaf.object.text.toUpperCase();});
+            if (!exists) {
+                let routines = SKSQL.instance.getTable("routines");
+                let def = readTableDefinition(routines.data);
+                let nameCol = def.columns.find((c) => { return c.name.toUpperCase() === "NAME";});
+                let defCol = def.columns.find((c) => { return c.name.toUpperCase() === "DEFINITION";});
+                let cursor = readFirst(routines, def);
+                while (!cursorEOF(cursor)) {
+                    let fr = new DataView(routines.data.blocks[cursor.blockIndex], cursor.offset, cursor.rowLength + 5);
+                    let nameValue = readValue(routines, def, nameCol, fr, 5) as string;
+                    if (nameValue !== undefined && nameValue.toUpperCase() === leaf.object.text.toUpperCase()) {
+                        let defValue = readValue(routines, def, defCol, fr, 5) as string;
+                        this.addQuery("proc_" + leaf.object.text.toUpperCase(), defValue);
+                        return;
+                    }
+                    cursor = readNext(routines, def, cursor);
+                }
+
             }
         }
     }

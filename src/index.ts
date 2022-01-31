@@ -1,26 +1,49 @@
 import {Application, NavigationControllerDelegate, ServiceGetter, ViewController} from "mentatjs";
 import {SKSQLExplorerViewController} from "./SKSQLExplorerViewController";
-import {DBData, TDBEventsDelegate, TAuthSession, WSRSQL, WSRDataRequest, TWSRDataResponse} from "sksql";
-import {CWebSocket} from "../../sksql/build/WebSocket/CWebSocket";
+import {SKSQL, TDBEventsDelegate, TAuthSession, WSRSQL, WSRDataRequest, TWSRDataResponse, WSROK} from "sksql";
+import {SKDashboardViewController} from "./SKDashboardViewController";
 
 
 
-class SKSQLExplorerApp extends Application implements NavigationControllerDelegate, TDBEventsDelegate {
+
+class SKSQLExplorerApp extends Application implements NavigationControllerDelegate {
 
     applicationWillStart() {
         // init SKSQL
-        let _ = new DBData(this, "ws://localhost:30000");
-        _.initWorkerPool(0, "");
 
-        this.navigationController.instantiateViewController("SKSQLExplorerViewController", SKSQLExplorerViewController, this);
+        let db = new SKSQL();
+        db.initWorkerPool(0, "");
+
+        let queryString = window.location.pathname;
+        if (queryString !== "" && queryString.startsWith("/")) {
+            queryString = queryString.substr(1);
+        }
+
+        this.loadDocument(queryString);
+
+
+
+
+    }
+
+    showDashboard() {
+        this.navigationController.instantiateViewController("SKDashboardViewController", SKDashboardViewController, this);
     }
 
     viewControllerWasLoadedSuccessfully(viewController: ViewController) {
         this.navigationController.present(viewController);
     }
 
+    loadDocument(doc: string) {
+        this.navigationController.instantiateViewController("SKSQLExplorerViewController", SKSQLExplorerViewController, this);
+    }
+
+
     on(message: string, payload: any) {
         if (message === WSRSQL) {
+            Application.instance.notifyAll(this, "refreshTables");
+        }
+        if (message === WSROK) {
             Application.instance.notifyAll(this, "refreshTables");
         }
         if (message === WSRDataRequest) {

@@ -21,6 +21,7 @@ import {SQLErrorViewController} from "./SQLErrorViewController";
 export class QueryAndResultsViewController extends ViewController {
 
     queryID: string;
+    query: string;
 
     private toolbarActions: Toolbar;
     private codeMirror: any;
@@ -73,7 +74,7 @@ export class QueryAndResultsViewController extends ViewController {
                     lineNumbers: true,
                     lineWrapping: true,
                     readOnly: false,
-                    value: "",
+                    value: this.query,
                     mode: "text/javascript"
                 });
                 let bounds = fnBody.getBounds("");
