@@ -8,18 +8,38 @@ import {SKDashboardViewController} from "./SKDashboardViewController";
 
 class SKSQLExplorerApp extends Application implements NavigationControllerDelegate {
 
+    db: SKSQL;
+
     applicationWillStart() {
         // init SKSQL
 
-        let db = new SKSQL();
-        db.initWorkerPool(0, "");
+        this.db = new SKSQL();
+        this.db.initWorkerPool(0, "");
 
         let queryString = window.location.pathname;
         if (queryString !== "" && queryString.startsWith("/")) {
             queryString = queryString.substr(1);
         }
 
-        this.loadDocument(queryString);
+        this.db.connectToServer("ws://localhost:30000", {
+            authRequired(db: SKSQL, databaseHashId: string): TAuthSession {
+                return { valid: true, name: "Alex", token: ""} as TAuthSession;
+            },
+            on(db: SKSQL, databaseHashId: string, message: string, payload: any) {
+
+            },
+            ready: (db: SKSQL, databaseHashId: string) => {
+                this.loadDocument(queryString);
+            },
+            connectionLost(db: SKSQL, databaseHashId: string) {
+                console.log("Connection Lost");
+            },
+            connectionError(db: SKSQL, databaseHashId: string, error: string): any {
+                console.log("Connection Error: " + error);
+            }
+        })
+
+
 
 
 
@@ -31,6 +51,8 @@ class SKSQLExplorerApp extends Application implements NavigationControllerDelega
     }
 
     viewControllerWasLoadedSuccessfully(viewController: ViewController) {
+        //@ts-ignore
+        viewController.db = this.db;
         this.navigationController.present(viewController);
     }
 

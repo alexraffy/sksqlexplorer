@@ -6,7 +6,7 @@ import {
     fillParentBounds,
     Label,
     NUConvertToPixel,
-    SelectionMode,
+    SelectionMode, setProps,
     TableView,
     TableViewDelegate,
     Toolbar,
@@ -40,9 +40,15 @@ import {modalView} from "./ModalViewController";
 
 export class ResultsTableViewController extends ViewController implements TableViewDelegate {
 
+    db: SKSQL;
     showAllColumns: boolean;
     tableName: string;
     tableView: TableView;
+
+    constructor(db: SKSQL) {
+        super();
+        this.db = db;
+    }
 
     viewForViewController(): View {
         let v = new View();
@@ -110,7 +116,7 @@ export class ResultsTableViewController extends ViewController implements TableV
     onDelete() {
         modalView("&#xf071;", "Delete table", "Are you sure you want to delete this table ? The table definition and all its data will be deleted. This action cannot be undone. ", "CANCEL", "DELETE TABLE", (action) => {
             if (action === "button2") {
-                SKSQL.instance.dropTable(this.tableName);
+                this.db.dropTable(this.tableName);
                 Application.instance.notifyAll(this, "refreshTables");
             }
         });
@@ -120,12 +126,12 @@ export class ResultsTableViewController extends ViewController implements TableV
         if (this.tableName === "") {
             return;
         }
-        let t: ITable = SKSQL.instance.getTable(this.tableName);
+        let t: ITable = this.db.getTable(this.tableName);
         if (t === undefined) {
             return;
         }
         let tb: ITableDefinition = readTableDefinition(t.data, false);
-        let data = readTableAsJSON(this.tableName);
+        let data = readTableAsJSON(this.db, this.tableName);
 
         this.tableView.jsonColumns = [];
         let idx = 0;
@@ -174,7 +180,7 @@ export class ResultsTableViewController extends ViewController implements TableV
                 if (c.id === "system_rowid") {
                     r["system_rowid"] = dv.getUint32(kBlockHeaderField.DataRowId);
                 } else if (c.id === "system_flag") {
-                    r["system_flag"] = isRowDeleted(t.data, cursor);
+                    r["system_flag"] = (isRowDeleted(t.data, cursor) === true) ? "&#xf54c;" : "";
                 } else {
                     let col = tb.columns.find((t) => { return t.name.toUpperCase() === c.id.toUpperCase();});
                     if (col === undefined) {
@@ -233,6 +239,9 @@ export class ResultsTableViewController extends ViewController implements TableV
 
     tableViewControlCellWillInit(tableView: TableView, cell: View, control: View, item: any, columnInfo: any, path: { row: number; col: number }) {
         let label = control as Label;
+        if (columnInfo.field === "system_flag") {
+            control.getDefaultStyle().textStyle.weight = "FontAwesome5FreeSolid";
+        }
         if (label.fontColor) {
             //label.fontColor = "rgba(255, 255, 255, 1.0)";
         }

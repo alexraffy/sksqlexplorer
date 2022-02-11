@@ -13,7 +13,7 @@ import {
 } from "mentatjs";
 import {Theme} from "./Theme";
 import * as codemirror from "codemirror";
-import {SQLResult, SQLStatement} from "sksql";
+import {SKSQL, SQLResult, SQLStatement} from "sksql";
 import {SKSQLExplorerView} from "./SKSQLExplorerView";
 import {ResultsTableViewController} from "./ResultsTableViewController";
 import {SQLErrorViewController} from "./SQLErrorViewController";
@@ -22,7 +22,7 @@ export class QueryAndResultsViewController extends ViewController {
 
     queryID: string;
     query: string;
-
+    db: SKSQL;
     private toolbarActions: Toolbar;
     private codeMirror: any;
     private resultsTab: Tabs;
@@ -36,6 +36,10 @@ export class QueryAndResultsViewController extends ViewController {
         tableName: string;
         type: "QUERY" | "MESSAGE" | "EXECUTIONPLAN"
     }[] = [];
+
+    constructor() {
+        super();
+    }
 
     viewForViewController(): View {
         let v = new View();
@@ -178,30 +182,32 @@ export class QueryAndResultsViewController extends ViewController {
             requestAnimationFrame( () => {
                 let value = this.codeMirror.getValue();
 
-                let sql = new SQLStatement(value);
-                let ret: SQLResult[] = [];
+                let sql = new SQLStatement(this.db, value, true);
+                let ret: SQLResult;
                 try {
-                    ret = sql.run();
+                    ret = sql.run() as SQLResult;
                 } catch (excep) {
-                    ret = [{error: excep.message, rowCount: undefined, resultTableName: "", executionPlan: undefined, perfs:{parser: 0, query: 0}}]
+                    ret = {
+                        error: excep.message,
+                        rowCount: 0,
+                        rowsDeleted: 0,
+                        rowsInserted: 0,
+                        rowsModified: 0,
+                        resultTableName: "",
+                        messages: excep.stack,
+                        queries: [],
+                        totalRuntime: 0,
+                        parserTime: 0
+                    } as SQLResult;
+                }
+                if (ret.error !== undefined) {
+                    gotErrors = true;
+                    error = ret.error;
+                }
+                if (ret.resultTableName !== "") {
+                    gotResults = true;
                 }
 
-                for (let i = 0; i < ret.length; i++) {
-                    if (ret[i].error !== undefined) {
-                        gotErrors = true;
-                        error = error + "\r\n" + ret[i].error;
-                    }
-                    if (ret[i].rowCount > 0) {
-                        gotMessages = true;
-                        message = message + "\r\n" + ret[i].rowCount;
-                    }
-                    if (ret[i].resultTableName !== "") {
-                        gotResults = true;
-                    }
-                    if (ret[i].executionPlan !== undefined && typeof ret[i].executionPlan.description === "string") {
-                        gotExecutionPlan = true;
-                    }
-                }
 
                 if (gotErrors) {
                     let id = generateV4UUID();
@@ -218,37 +224,24 @@ export class QueryAndResultsViewController extends ViewController {
                     this.addErrorPane(id, this.resultsView, error);
                 }
 
-                for (let i = 0; i < ret.length; i++) {
-                    if (ret[i].resultTableName !== "") {
-                        let id = generateV4UUID();
 
-                        this.resultsTab.dataSource.push(
-                            {
-                                id: id,
-                                width: 150,
-                                text: "" + ret[i].resultTableName
-                            }
-                        );
-                        this.resultsTab.selectedId = id;
-                        this.resultsTab.processStyleAndRender("", []);
-                        this.addResultPane(id, this.resultsView, ret[i].resultTableName, false);
+                if (gotResults) {
+                    let id = generateV4UUID();
 
-                        if (ret[i].executionPlan !== undefined && typeof ret[i].executionPlan.description === "string") {
-                            let idExecutionPlan = generateV4UUID();
-                            this.resultsTab.dataSource.push(
-                                {
-                                    id: idExecutionPlan,
-                                    width: 150,
-                                    text: "Execution Plan"
-                                }
-                            );
-                            this.resultsTab.processStyleAndRender("", []);
-                            this.addErrorPane(idExecutionPlan, this.resultsView, ret[i].executionPlan.description);
+                    this.resultsTab.dataSource.push(
+                        {
+                            id: id,
+                            width: 150,
+                            text: "" + ret.resultTableName
                         }
+                    );
+                    this.resultsTab.selectedId = id;
+                    this.resultsTab.processStyleAndRender("", []);
+                    this.addResultPane(id, this.resultsView, ret.resultTableName, false);
 
 
-                    }
                 }
+
 
                 if (gotMessages) {
                     let id = generateV4UUID();
@@ -266,6 +259,8 @@ export class QueryAndResultsViewController extends ViewController {
 
 
                 this.resultsTab.setActionDelegate(this, "onTabSelected");
+
+                sql.close();
 
                 btn.setText("Execute")
                 btn.setEnabled(true);
@@ -297,6 +292,7 @@ export class QueryAndResultsViewController extends ViewController {
         nav.instantiateViewController(generateV4UUID(), SQLErrorViewController, {
             viewControllerWasLoadedSuccessfully: (viewController: ViewController) => {
                 (viewController as SQLErrorViewController).message = message;
+                (viewController as SQLErrorViewController).db = this.db;
                 this.tabs.push({
                     id: id,
                     view: pane,
@@ -326,6 +322,7 @@ export class QueryAndResultsViewController extends ViewController {
             viewControllerWasLoadedSuccessfully: (viewController: ViewController) => {
                 (viewController as ResultsTableViewController).tableName = tableName;
                 (viewController as ResultsTableViewController).showAllColumns = showAllColumns;
+                (viewController as ResultsTableViewController).db = this.db;
                 this.tabs.push({
                     id: id,
                     view: pane,

@@ -1,9 +1,10 @@
 import {Bounds, fillParentBounds, Label, NUConvertToPixel, View, ViewController} from "mentatjs";
 import {Theme} from "./Theme";
+import {SKSQL} from "../../sksql";
 
 
 export class SQLErrorViewController extends ViewController {
-
+    db: SKSQL;
     message: string;
     private label: Label;
     viewForViewController() {

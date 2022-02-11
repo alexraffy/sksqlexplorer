@@ -23,7 +23,7 @@ import {ResultsTableViewController} from "./ResultsTableViewController";
 export class SKSQLExplorerViewController extends ViewController implements TreeViewDelegate {
 
     lastQueryIndex: number = 0;
-
+    db: SKSQL;
     tabs: {
         id: string;
         view: View;
@@ -53,8 +53,8 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
 
     refreshTables() {
         let ds = [];
-        for (let i = 0; i < SKSQL.instance.allTables.length; i++) {
-            let td = readTableDefinition(SKSQL.instance.allTables[i].data);
+        for (let i = 0; i < this.db.allTables.length; i++) {
+            let td = readTableDefinition(this.db.allTables[i].data);
             let t = {
                 kind: "TABLE",
                 id: td.name,
@@ -83,8 +83,8 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
             text: "Functions",
             children: []
         };
-        for (let i = 0; i < SKSQL.instance.functions.length; i++) {
-            let fn: TRegisteredFunction = SKSQL.instance.functions[i];
+        for (let i = 0; i < this.db.functions.length; i++) {
+            let fn: TRegisteredFunction = this.db.functions[i];
             functions.children.push({
                 id: generateV4UUID(),
                 kind: instanceOfTQueryCreateFunction(fn.fn) ? "FUNCTION" : "JSFUNCTION",
@@ -100,8 +100,8 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
             text: "Procedures",
             children: []
         };
-        for (let i = 0; i < SKSQL.instance.procedures.length; i++) {
-            let fn: TQueryCreateProcedure = SKSQL.instance.procedures[i];
+        for (let i = 0; i < this.db.procedures.length; i++) {
+            let fn: TQueryCreateProcedure = this.db.procedures[i];
             procedures.children.push({
                 id: generateV4UUID(),
                 kind: "PROC",
@@ -150,6 +150,7 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
             viewControllerWasLoadedSuccessfully: (viewController: ViewController) => {
                 (viewController as QueryAndResultsViewController).queryID = id;
                 (viewController as QueryAndResultsViewController).query = text;
+                (viewController as QueryAndResultsViewController).db = this.db;
                 this.tabs.push({
                     id: id,
                     view: pane,
@@ -190,6 +191,7 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
             viewControllerWasLoadedSuccessfully: (viewController: ViewController) => {
                 (viewController as ResultsTableViewController).tableName = tableName;
                 (viewController as ResultsTableViewController).showAllColumns = showAllColumns;
+                (viewController as ResultsTableViewController).db = this.db;
                 this.tabs.push({
                     id: id,
                     view: pane,
@@ -304,7 +306,7 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
         if (leaf.object.kind === "FUNCTION") {
             let exists = this.tabs.find((t) => { return t.tableName === "function_" + leaf.object.text.toUpperCase();});
             if (!exists) {
-                let routines = SKSQL.instance.getTable("routines");
+                let routines = this.db.getTable("routines");
                 let def = readTableDefinition(routines.data);
                 let nameCol = def.columns.find((c) => { return c.name.toUpperCase() === "NAME";});
                 let defCol = def.columns.find((c) => { return c.name.toUpperCase() === "DEFINITION";});
@@ -325,7 +327,7 @@ export class SKSQLExplorerViewController extends ViewController implements TreeV
         if (leaf.object.kind === "PROC") {
             let exists = this.tabs.find((t) => { return t.tableName === "proc_" + leaf.object.text.toUpperCase();});
             if (!exists) {
-                let routines = SKSQL.instance.getTable("routines");
+                let routines = this.db.getTable("routines");
                 let def = readTableDefinition(routines.data);
                 let nameCol = def.columns.find((c) => { return c.name.toUpperCase() === "NAME";});
                 let defCol = def.columns.find((c) => { return c.name.toUpperCase() === "DEFINITION";});

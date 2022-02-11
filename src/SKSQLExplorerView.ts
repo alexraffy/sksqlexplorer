@@ -10,6 +10,7 @@ import {
     View
 } from "mentatjs";
 import {Theme} from "./Theme";
+import {SKSQL} from "sksql";
 
 
 export class SKSQLExplorerView extends View {
@@ -18,6 +19,7 @@ export class SKSQLExplorerView extends View {
     treeView: TreeView;
     contentView: View;
     viewTabBar: Tabs;
+    db: SKSQL;
 
     constructor() {
         super();
