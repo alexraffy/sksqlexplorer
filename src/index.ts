@@ -8,41 +8,10 @@ import {SKDashboardViewController} from "./SKDashboardViewController";
 
 class SKSQLExplorerApp extends Application implements NavigationControllerDelegate {
 
-    db: SKSQL;
+    dbs: SKSQL[];
 
     applicationWillStart() {
-        // init SKSQL
-
-        this.db = new SKSQL();
-        this.db.initWorkerPool(0, "");
-
-        let queryString = window.location.pathname;
-        if (queryString !== "" && queryString.startsWith("/")) {
-            queryString = queryString.substr(1);
-        }
-
-        this.db.connectToServer("ws://localhost:30000", {
-            authRequired(db: SKSQL, databaseHashId: string): TAuthSession {
-                return { valid: true, name: "Alex", token: ""} as TAuthSession;
-            },
-            on(db: SKSQL, databaseHashId: string, message: string, payload: any) {
-
-            },
-            ready: (db: SKSQL, databaseHashId: string) => {
-                this.loadDocument(queryString);
-            },
-            connectionLost(db: SKSQL, databaseHashId: string) {
-                console.log("Connection Lost");
-            },
-            connectionError(db: SKSQL, databaseHashId: string, error: string): any {
-                console.log("Connection Error: " + error);
-            }
-        })
-
-
-
-
-
+        this.navigationController.instantiateViewController("SKSQLExplorerViewController", SKSQLExplorerViewController, this);
 
     }
 
@@ -52,12 +21,12 @@ class SKSQLExplorerApp extends Application implements NavigationControllerDelega
 
     viewControllerWasLoadedSuccessfully(viewController: ViewController) {
         //@ts-ignore
-        viewController.db = this.db;
+        viewController.dbs = this.dbs;
         this.navigationController.present(viewController);
     }
 
     loadDocument(doc: string) {
-        this.navigationController.instantiateViewController("SKSQLExplorerViewController", SKSQLExplorerViewController, this);
+
     }
 
 
@@ -90,7 +59,45 @@ class SKSQLExplorerApp extends Application implements NavigationControllerDelega
 }
 
 window.onload = () => {
+
+    // init SKSQL
+    let db = new SKSQL();
+    db.initWorkerPool(0, "");
+
+    let queryString = window.location.pathname;
+    if (queryString !== "" && queryString.startsWith("/")) {
+        queryString = queryString.substr(1);
+    }
+    if (queryString.indexOf('/') > -1) {
+        let arr = queryString.split("/");
+        queryString = arr[arr.length -1];
+    }
+    if (queryString.startsWith("index.html")) {
+        queryString = "wss://sksql.com/ws/30000";
+    }
+    let connectionString = queryString;
+
+
+    db.connectToDatabase(connectionString, {
+        authRequired(db: SKSQL, databaseHashId: string): TAuthSession {
+            return { valid: true, name: "User", token: ""} as TAuthSession;
+        },
+        on(db: SKSQL, databaseHashId: string, message: string, payload: any) {
+
+        },
+        ready: (db: SKSQL, databaseHashId: string) => {
+            Application.instance.notifyAll(this, "refreshTables");
+        },
+        connectionLost(db: SKSQL, databaseHashId: string) {
+            console.log("Connection Lost");
+        },
+        connectionError(db: SKSQL, databaseHashId: string, error: string): any {
+            console.log("Connection Error: " + error);
+        }
+    });
+
     ServiceGetter.instance.initWeb();
     let a = new SKSQLExplorerApp();
+    a.dbs = [db];
     a.launch();
 }

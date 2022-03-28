@@ -1,7 +1,7 @@
 import {
     Application,
     Bounds,
-    Btn,
+    Btn, Drp,
     fillParentBounds, generateV4UUID, Label,
     NavigationController,
     NUConvertToPixel,
@@ -22,7 +22,7 @@ export class QueryAndResultsViewController extends ViewController {
 
     queryID: string;
     query: string;
-    db: SKSQL;
+    db: SKSQL[];
     private toolbarActions: Toolbar;
     private codeMirror: any;
     private resultsTab: Tabs;
@@ -62,6 +62,31 @@ export class QueryAndResultsViewController extends ViewController {
                     b.text = "Execute";
                     b.setActionDelegate(this, "onExecute");
                     return b;
+                }
+            },{
+                id: "selectDB",
+                width: 150,
+                isSpace: false,
+                viewFn: () => {
+                    if (this.db.length > 1) {
+                        let v = new Drp();
+                        v.styles = Theme.dropdownStyle;
+                        v.dataSource = [];
+                        for (let i = 0; i < this.db.length; i++) {
+                            if (this.db[i].connections.length > 0) {
+                                v.dataSource.push(
+                                    {
+                                        id: this.db[i].connections[0].databaseHashId,
+                                        text: this.db[i].connections[0].databaseHashId
+                                    }
+                                );
+                            }
+                        }
+                        return v;
+                    } else {
+                        let v = new View();
+                        return v;
+                    }
                 }
             }];
             toolbar.initView(v.id + ".toolbar");
@@ -151,6 +176,29 @@ export class QueryAndResultsViewController extends ViewController {
         return v;
     }
 
+    getCurrentDB() {
+
+        if (this.db.length === 0) {
+            return undefined;
+        }
+        if (this.db.length === 1) {
+            return this.db[0];
+        } else if (this.db.length > 1) {
+            let drp = this.toolbarActions.findControlForId("selectDB") as Drp;
+            let conn = drp.selectedID;
+            for (let i = 0; i < this.db.length; i++) {
+                if (this.db[i].connections.length > 0) {
+                    if (this.db[i].connections[0].databaseHashId === conn) {
+                        return this.db[i];
+                        break;
+                    }
+                }
+            }
+        }
+        return undefined;
+    }
+
+
     viewWasPresented() {
 
     }
@@ -181,14 +229,14 @@ export class QueryAndResultsViewController extends ViewController {
             }
             requestAnimationFrame( () => {
                 let value = this.codeMirror.getValue();
-
-                let sql = new SQLStatement(this.db, value, true);
+                let db = this.getCurrentDB();
+                let sql = new SQLStatement(db, value, true);
                 let ret: SQLResult;
                 try {
                     ret = sql.run() as SQLResult;
                 } catch (excep) {
                     ret = {
-                        error: excep.message,
+                        error: excep.message + "\r\n<br/>" + JSON.stringify(excep.stack),
                         rowCount: 0,
                         rowsDeleted: 0,
                         rowsInserted: 0,
@@ -292,7 +340,7 @@ export class QueryAndResultsViewController extends ViewController {
         nav.instantiateViewController(generateV4UUID(), SQLErrorViewController, {
             viewControllerWasLoadedSuccessfully: (viewController: ViewController) => {
                 (viewController as SQLErrorViewController).message = message;
-                (viewController as SQLErrorViewController).db = this.db;
+                (viewController as SQLErrorViewController).db = this.getCurrentDB();
                 this.tabs.push({
                     id: id,
                     view: pane,
@@ -322,7 +370,7 @@ export class QueryAndResultsViewController extends ViewController {
             viewControllerWasLoadedSuccessfully: (viewController: ViewController) => {
                 (viewController as ResultsTableViewController).tableName = tableName;
                 (viewController as ResultsTableViewController).showAllColumns = showAllColumns;
-                (viewController as ResultsTableViewController).db = this.db;
+                (viewController as ResultsTableViewController).db = this.getCurrentDB();
                 this.tabs.push({
                     id: id,
                     view: pane,

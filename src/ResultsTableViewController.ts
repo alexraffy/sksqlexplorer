@@ -45,9 +45,8 @@ export class ResultsTableViewController extends ViewController implements TableV
     tableName: string;
     tableView: TableView;
 
-    constructor(db: SKSQL) {
+    constructor() {
         super();
-        this.db = db;
     }
 
     viewForViewController(): View {

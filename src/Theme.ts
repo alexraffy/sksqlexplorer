@@ -109,7 +109,7 @@ export class Theme {
         return "rgba(60, 60, 60, 1.0)";
     }
     static get listRowSelectedColor(): string {
-        return "rgba(82, 82, 82, 1.0)"
+        return Theme.indigo500;
     }
 
     static get tabBackgroundColor(): string {
@@ -206,33 +206,48 @@ export class Theme {
     }
 
 
-    get treeViewStyle(): ViewStyle[] {
+    static get treeViewStyle(): ViewStyle[] {
         return [
             {
                 kind: "ViewStyle",
-                //fills: [new Fill(true, "color", "normal", Theme.listBackgroundColor)]
             },
             {
                 kind: "ViewStyle",
                 id: "cell",
                 cond: [],
-                //fills: [new Fill(true, "color", "normal", Theme.listRowNormalColor)],
+                textStyle: setProps(new PropertyTextStyle(), {
+                    color: new Fill(true, "color", "normal", Theme.grey700),
+                    size: px(14)
+                } as PropertyTextStyle),
                 userSelect: "none"
             },
             {
                 kind: "ViewStyle",
                 id: "cell",
                 cond: [{property: "view.hovered", op: "equals", value: true}],
-                fills: [new Fill(true, "color", "normal", "rgba(24, 144, 255, 0.1)")],
+                fills: [new Fill(true, "color", "normal", "rgba(24, 144, 255, 0.6)")],
+                textStyle: setProps(new PropertyTextStyle(), {
+                    color: new Fill(true, "color", "normal", Theme.grey700),
+                    size: px(14)
+                } as PropertyTextStyle),
                 userSelect: "none"
                 // borders: [new Border(true, 2, "solid", "rgba(24, 144, 255, 1.0)")]
             },
             {
                 kind: "ViewStyle",
                 id: "cell",
-                cond: [{property: "cell.isSelected", op: "equals", value: true}],
+                cond: [{property: "cell.isSelected", op: "equals", value: true, triggerChildren: ['cellTitle', 'cellIcon']}],
                 fills: [new Fill(true, "color", "normal", Theme.listRowSelectedColor)],
+                textStyle: setProps(new PropertyTextStyle(), {
+                    color: new Fill(true, "color", "normal", Theme.white),
+                    size: px(14)
+                } as PropertyTextStyle),
                 userSelect: "none"
+            },
+            {
+                kind: "ViewStyle",
+                id: "cell",
+                cond: [{property: "cell.isSelected", op: "equals", value: false, triggerChildren: ['cellTitle', 'cellIcon']}]
             },
             {
                 kind: "ViewStyle",
@@ -269,6 +284,10 @@ export class Theme {
     }
     static get black005(): string {
         return "rgba(0, 0, 0, 0.05)"
+    }
+
+    static get indigo500(): string {
+        return "rgba(99, 102, 241, 1.0)";
     }
 
     static get buttonActionStyle(): ViewStyle[] {
@@ -360,12 +379,10 @@ export class Theme {
             setProps(new ViewStyle(),
                 {
                     borderRadius: new BorderRadius(3, 3, 3, 3),
-                    //borders: [new Border(true, 1, "solid", "rgba(50, 50, 50, 1.0)", BorderSide.all)],
-                    shadows: [new Shadow(true, 0, 1, 1, 1, Color.fromString("rgba(50, 50, 59, 1.0)"), false)],
+                    borders: [new Border(true, 1, "solid", Theme.grey300, BorderSide.all)],
 
-                    fills: [new Fill(true, "gradient", "normal", "linear-gradient(rgba(61, 61, 61, 1.0), rgba(57, 57, 57, 1.0))")],
                     textStyle: setProps(new PropertyTextStyle(), {
-                        color: new Fill(true, "color", "normal", "rgba(224, 224, 225, 1.0)"),
+                        color: new Fill(true, "color", "normal", Theme.grey700),
                         size: px(12),
                         weightValue: '600'
                     } as PropertyTextStyle)
@@ -373,10 +390,10 @@ export class Theme {
             {
                 id: "glyph",
                 textStyle: setProps(new PropertyTextStyle(), {
-                    color: new Fill(true, "color", "normal", "rgba(224, 224, 225, 1.0)"),
+                    color: new Fill(true, "color", "normal", Theme.grey700),
                     size: px(10),
                     textAlignment: "center",
-                    weight: "FontAwesome5ProSolid",
+                    weight: "FontAwesome5FreeSolid",
                     fillLineHeight: true
                 } as PropertyTextStyle)
             } as ViewStyle,
@@ -390,8 +407,37 @@ export class Theme {
                             path: ""
                         }
                     ],
-                    fills: [new Fill(true, "gradient", "normal", "linear-gradient(rgba(77, 77, 77, 1.0), rgba(61, 61, 61, 1.0))")],
-                } as ViewStyle)
+                    borderRadius: new BorderRadius(3, 3, 3, 3),
+                    borders: [new Border(true, 1, "solid", Theme.grey300, BorderSide.all)],
+                    textStyle: setProps(new PropertyTextStyle(), {
+                        color: new Fill(true, "color", "normal", Theme.grey700),
+                        size: px(12),
+                        weightValue: '600'
+                    } as PropertyTextStyle)
+                } as ViewStyle),
+            setProps(new ViewStyle(),
+            {
+                cond: [
+                    {
+                        property: kViewProperties.focused,
+                        value: true,
+                        op: "equals",
+                        path: ""
+                    }
+                ],
+                borderRadius: new BorderRadius(3, 3, 3, 3),
+                borders: [new Border(true, 1, "solid", Theme.indigo500, BorderSide.all)],
+
+                textStyle: setProps(new PropertyTextStyle(), {
+                    color: new Fill(true, "color", "normal", Theme.grey700),
+                    size: px(12),
+                    weightValue: '600'
+                } as PropertyTextStyle),
+                outlineColor: Theme.indigo500,
+                outlineWidth: "2px",
+                outlineStyle: "solid",
+                outlineOffset: "0px"
+            } as ViewStyle)
         ]
     }
 

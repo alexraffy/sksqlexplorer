@@ -96,6 +96,7 @@ export class SKSQLExplorerView extends View {
 
     setExplorer() {
         let treeView = new TreeView();
+        treeView.styles = Theme.treeViewStyle;
         treeView.boundsForView = function (parentBounds) {
             return new Bounds(
                 0,
